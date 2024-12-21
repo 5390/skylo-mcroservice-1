@@ -15,20 +15,20 @@ cURL (for testing endpoints)
 Project Structure
 
 ```
-├── docker-compose.yml
-├── microservice-1
+project/
+├── microservice-1/
 │   ├── main.go
-│   ├── Dockerfile
-│   └── ...
-├── microservice-2
-│   ├── server.go
-│   ├── Dockerfile
-│   └── ...
-├── db
-│   ├── init.sql
-├── kafka
-│   └── ...
-└── README.md
+│   ├── queue/         # Queue consumer logic
+│   ├── retry/         # Retry mechanism
+│   ├── db/            # Database interactions
+│   └── config/        # Configurations and environment variables
+├── microservice-2/
+│   ├── main.go
+│   ├── server/           # REST Server implementation
+│   ├── db/            # Database interactions
+│   └── config/        # Configurations and environment variables
+├── README.md          # Setup, build, and run instructions
+└── docker-compose.yml # Optional: For containerized setup
 ```
 
 Services Overview
@@ -51,12 +51,13 @@ KAFKA_BROKER: Address of the Kafka broker.
 
 Dockerfile:
 
-FROM golang:1.20
+```FROM golang:1.20
 WORKDIR /app
 COPY . .
 RUN go mod download
 RUN go build -o microservice-1 .
 CMD ["./microservice-1"]
+```
 
 2. Microservice-2
 
@@ -78,12 +79,13 @@ DB_NAME: PostgreSQL database name.
 
 Dockerfile:
 
-FROM golang:1.20
+```FROM golang:1.20
 WORKDIR /app
 COPY . .
 RUN go mod download
 RUN go build -o microservice-2 .
 CMD ["./microservice-2"]
+```
 
 3. PostgreSQL Database
 
@@ -98,7 +100,7 @@ CREATE TABLE IF NOT EXISTS received_messages (
 );
 
 Docker Configuration:
-
+```
 postgres:
   image: postgres:15
   container_name: postgres-db
@@ -110,13 +112,14 @@ postgres:
     - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
   ports:
     - "5432:5432"
+```
 
 4. Kafka
 
 Purpose: Enables message streaming between services.
 
 Setup in docker-compose.yml:
-
+```
 kafka:
   image: confluentinc/cp-kafka:latest
   container_name: kafka-broker
@@ -134,12 +137,13 @@ zookeeper:
     ZOOKEEPER_CLIENT_PORT: 2181
   ports:
     - "2181:2181"
+```
 
 Running the Services
 
 Build and Start Containers:
 
-docker-compose up --build
+```docker-compose up --build```
 
 Verify Services:
 
@@ -152,23 +156,36 @@ Testing the Endpoints:
 Microservice-2
 
 Test data submission:
-
+```
 curl --location --request POST 'http://localhost:8081/api/data' \
 --header 'Content-Type: application/json' \
 --data-raw '{"data": "some data"}'
+```
 
-Microservice-1
-
-Test forwarding requests to microservice-2:
-
-curl --location --request POST 'http://localhost:8080/api/send' \
---header 'Content-Type: application/json' \
---data-raw '{"data": "message to service 2"}'
-
-Verify Kafka Messages:
+**Verify Kafka Messages**:
 Use a Kafka client to confirm the messages are published to the specified topic.
+Connect Kafka  : 
+```docker exec -it kafka kafka-console-producer --broker-list kafka:9092 --topic my-topic```
+Add Message to Queue:
 
-Notes
+**Detailed Flow**
+**Message Production:**
+
+Messages are added by Commands (or another producer system) and added to the Kafka topic ```my-topic```.
+
+**Microservice-1 Consumes Messages**:
+
+**Microservice-1** connects to Kafka and continuously polls messages from the topic my-topic.
+Microservice-1 Sends Messages to **Microservice-2**:
+
+Microservice-1 reads the message payload and sends it as a ```POST``` request to Microservice-2's API ```(/api/data)```.
+If the API call fails (e.g., due to a network error or Microservice-2 being down), Microservice-1 retries the operation every 10 seconds until the message is successfully delivered.
+Microservice-2 Processes and Stores Messages:
+
+Microservice-2 receives the message from Microservice-1 through its POST API.
+The message is validated and then inserted into the PostgreSQL table received_messages.
+
+**Notes**
 
 Ensure proper network configuration in Docker Compose for service-to-service communication.
 
@@ -178,9 +195,9 @@ Logs are available for debugging; ensure log levels are appropriately set for pr
 
 Troubleshooting
 
-Database Connection Errors: Ensure DB_HOST, DB_USER, and DB_PASSWORD are correctly set.
+**Database Connection Errors**: Ensure ```DB_HOST, DB_USER, and DB_PASSWORD ``` are correctly set.
 
-Kafka Issues: Verify KAFKA_BROKER and KAFKA_ZOOKEEPER_CONNECT settings.
+**Kafka Issues**: ```Verify KAFKA_BROKER``` and ```KAFKA_ZOOKEEPER_CONNECT``` settings.
 
-CORS Issues: Ensure microservice-2 has the correct CORS settings if accessed from a different origin.
+**CORS Issues**: Ensure microservice-2 has the correct CORS settings if accessed from a different origin.
 
