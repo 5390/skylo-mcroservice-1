@@ -157,19 +157,23 @@ Steps:
 Access the Kafka Container: Run the following command to get a shell inside the Kafka Docker container:
 
 ```docker exec -it kafka bash```
+
 Produce a Message: Use the kafka-console-producer command to send a message to the topic my-topic:
+
 ```kafka-console-producer --broker-list localhost:9092 --topic my-topic```
 
 Enter the Message: After running the above command, the terminal will wait for input. Type a message and press Enter:
+
 ```{"data": "test-message"}```
 
 Each line you type will be sent as a message to the topic.
 Verify the Message: Use the kafka-console-consumer to verify the message:
+
 ```kafka-console-consumer --bootstrap-server localhost:9092 --topic my-topic --from-beginning```
 
 Check logs to ensure all containers are running.
 
-Verify Kafka, PostgreSQL, and the two microservices are active.
+Verify ```Kafka```, ```PostgreSQL```, and the two microservices are active.
 
 Testing the Endpoints:
 
